@@ -575,4 +575,17 @@ app:match('api-v1-users',api_prefix .. '/user', respond_to({
   end
 }))
 
+app:match('api-v1-config', api_prefix .. '/config', respond_to({
+  before = read_bearer,
+  GET = function(self)
+    return { json = {
+      rtmp_prefix = config.rtmp_prefix,
+      public_http_url = config.public_http_url,
+      public_rtmp_url = config.public_rtmp_url,
+      http_listen = config.http_listen,
+      rtmp_listen = config.rtmp_listen
+    } }
+  end
+}))
+
 return app

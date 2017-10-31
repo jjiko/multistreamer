@@ -1,3 +1,4 @@
+local config = require 'multistreamer.config'
 local db = require'lapis.db'
 local date = db.format_date
 local time = os.time
@@ -11,40 +12,113 @@ local function keystore_new(_, account_id, stream_id)
   m.account_id = account_id
   m.stream_id = stream_id
 
-  if m.account_id and m.stream_id then
-    m.query_string =
-      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
-      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
-      'here account_id = ? and stream_id = ? and key = ? and (expires_at > (now' ..
-      '() at time zone \'UTC\') or expires_at is null)'
-    m.query_all_string =
-      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
-      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
-      'ore where account_id = ? and stream_id = ? and (expires_at > (now() at t' ..
-      'ime zone \'UTC\') or expires_at is null)'
-  elseif not m.stream_id then
-    m.query_string =
-      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
-      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
-      'here account_id = ? and stream_id is NULL and key = ? and (expires_at > ' ..
-      '(now() at time zone \'UTC\') or expires_at is null)'
-    m.query_all_string =
-      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
-      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
-      'ore where account_id = ? and stream_id is NULL and (expires_at > (now() ' ..
-      'at time zone \'UTC\') or expires_at is null)'
-  else
-    m.query_string =
-      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
-      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
-      'here account_id is NULL and stream_id = ? and key = ? and (expires_at > ' ..
-      '(now() at time zone \'UTC\') or expires_at is null)'
-    m.query_all_string =
-      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
-      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
-      'ore where account_id is NULL and stream_id = ? and (expires_at > (now() ' ..
-      'at time zone \'UTC\') or expires_at is null)'
-  end
+    if config.postgres then
+        if m.account_id and m.stream_id then
+            m.query_string =
+            'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+                    'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+                    'here account_id = ? and stream_id = ? and key = ? and (expires_at > (now' ..
+                    '() at time zone \'UTC\') or expires_at is null)'
+            m.query_all_string =
+            'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+                    ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+                    'ore where account_id = ? and stream_id = ? and (expires_at > (now() at t' ..
+                    'ime zone \'UTC\') or expires_at is null)'
+        elseif not m.stream_id then
+            m.query_string =
+            'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+                    'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+                    'here account_id = ? and stream_id is NULL and key = ? and (expires_at > ' ..
+                    '(now() at time zone \'UTC\') or expires_at is null)'
+            m.query_all_string =
+            'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+                    ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+                    'ore where account_id = ? and stream_id is NULL and (expires_at > (now() ' ..
+                    'at time zone \'UTC\') or expires_at is null)'
+        else
+            m.query_string =
+            'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+                    'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+                    'here account_id is NULL and stream_id = ? and key = ? and (expires_at > ' ..
+                    '(now() at time zone \'UTC\') or expires_at is null)'
+            m.query_all_string =
+            'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+                    ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+                    'ore where account_id is NULL and stream_id = ? and (expires_at > (now() ' ..
+                    'at time zone \'UTC\') or expires_at is null)'
+        end
+    elseif config.mysql then
+        if m.account_id and m.stream_id then
+            m.query_string =
+            'value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) as ' ..
+                    'expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keystore w' ..
+                    'here account_id = ? and stream_id = ? and `key` = ? and (expires_at > UNIX_TIMESTAMP(NOW())' ..
+                    ' or expires_at is null)'
+            m.query_all_string =
+            '`key`, value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) as ' ..
+                    'expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keyst' ..
+                    'ore where account_id = ? and stream_id = ? and (expires_at > UNIX_TIMESTAMP(NOW())' ..
+                    ' or expires_at is null)'
+        elseif not m.stream_id then
+            m.query_string =
+            'value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) as ' ..
+                    'expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keystore where ' ..
+                    'account_id = ? and stream_id is NULL and `key` = ? and (expires_at > ' ..
+                    'UNIX_TIMESTAMP(NOW()) or expires_at is null)'
+            m.query_all_string =
+            '`key`, value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) as expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keystore ' ..
+                    'where account_id = ? and stream_id is NULL and (expires_at > UNIX_TIMESTAMP(NOW()) ' ..
+                    ' or expires_at is null)'
+        else
+            m.query_string =
+            'value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) as ' ..
+                    'expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keystore where ' ..
+                    'account_id is NULL and stream_id = ? and `key` = ? and (expires_at > ' ..
+                    'UNIX_TIMESTAMP(NOW()) or expires_at is null)'
+            m.query_all_string =
+            '`key`, value, (UNIX_TIMESTAMP(expires_at) - UNIX_TIMESTAMP(NOW())) ' ..
+                    'as expires_in, UNIX_TIMESTAMP(expires_at) as expires_at from keystore ' ..
+                    'where account_id is NULL and stream_id = ? and (expires_at > UNIX_TIMESTAMP(NOW()) ' ..
+                    'or expires_at is null)'
+        end
+    else
+        return error("You have to configure either postgres or mysql")
+    end
+
+--  if m.account_id and m.stream_id then
+--    m.query_string =
+--      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+--      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+--      'here account_id = ? and stream_id = ? and key = ? and (expires_at > (now' ..
+--      '() at time zone \'UTC\') or expires_at is null)'
+--    m.query_all_string =
+--      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+--      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+--      'ore where account_id = ? and stream_id = ? and (expires_at > (now() at t' ..
+--      'ime zone \'UTC\') or expires_at is null)'
+--  elseif not m.stream_id then
+--    m.query_string =
+--      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+--      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+--      'here account_id = ? and stream_id is NULL and key = ? and (expires_at > ' ..
+--      '(now() at time zone \'UTC\') or expires_at is null)'
+--    m.query_all_string =
+--      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+--      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+--      'ore where account_id = ? and stream_id is NULL and (expires_at > (now() ' ..
+--      'at time zone \'UTC\') or expires_at is null)'
+--  else
+--    m.query_string =
+--      'value, extract(epoch from expires_at - (now() at time zone \'UTC\')) as ' ..
+--      'expires_in, extract(epoch from expires_at) as expires_at from keystore w' ..
+--      'here account_id is NULL and stream_id = ? and key = ? and (expires_at > ' ..
+--      '(now() at time zone \'UTC\') or expires_at is null)'
+--    m.query_all_string =
+--      'key, value, extract(epoch from expires_at - (now() at time zone \'UTC\')' ..
+--      ') as expires_in, extract(epoch from expires_at) as expires_at from keyst' ..
+--      'ore where account_id is NULL and stream_id = ? and (expires_at > (now() ' ..
+--      'at time zone \'UTC\') or expires_at is null)'
+--  end
 
   m.get_all = function(self)
     local r = {}
